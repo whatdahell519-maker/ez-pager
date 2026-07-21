@@ -1,0 +1,920 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Digital Pager - Sender & Receiver</title>
+  <style>
+    :root {
+      --bg-color: #0d1117;
+      --card-bg: #161b22;
+      --border-color: #30363d;
+      --lcd-bg: #82a088;
+      --lcd-text: #0b1d0e;
+      --lcd-glow: #a8d5b0;
+      --accent-red: #da3633;
+      --accent-green: #238636;
+      --accent-yellow: #d29922;
+      --text-main: #c9d1d9;
+      --font-mono: 'Courier New', Courier, monospace, monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+    }
+
+    body {
+      background-color: var(--bg-color);
+      color: var(--text-main);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 900px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    header {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 12px;
+      padding: 16px 24px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .logo-area {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .pager-badge {
+      background: var(--accent-red);
+      color: #fff;
+      font-weight: bold;
+      font-size: 11px;
+      padding: 4px 8px;
+      border-radius: 4px;
+      letter-spacing: 1px;
+    }
+
+    h1 {
+      font-size: 20px;
+      font-weight: 700;
+      color: #f0f6fc;
+    }
+
+    .status-bar {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .channel-input-group {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #0d1117;
+      padding: 6px 12px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+    }
+
+    .channel-input-group label {
+      font-size: 12px;
+      color: #8b949e;
+      font-weight: bold;
+    }
+
+    .channel-input-group input {
+      background: transparent;
+      border: none;
+      color: #58a6ff;
+      font-family: var(--font-mono);
+      font-weight: bold;
+      width: 100px;
+      outline: none;
+      text-transform: uppercase;
+    }
+
+    .arm-btn {
+      background: var(--accent-green);
+      color: white;
+      border: none;
+      padding: 8px 16px;
+      border-radius: 6px;
+      font-weight: bold;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      transition: background 0.2s;
+    }
+
+    .arm-btn:hover {
+      background: #2ea043;
+    }
+
+    .arm-btn.armed {
+      background: #21262d;
+      color: #8b949e;
+      border: 1px solid var(--border-color);
+    }
+
+    /* Pager Main Layout */
+    .app-grid {
+      display: grid;
+      grid-template-columns: 1fr;
+      gap: 20px;
+    }
+
+    @media (min-width: 768px) {
+      .app-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+
+    .card {
+      background: var(--card-bg);
+      border: 1px solid var(--border-color);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #f0f6fc;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    /* Receiver LCD Pager Styling */
+    .pager-device {
+      background: #12161a;
+      border: 3px solid #2d333b;
+      border-radius: 20px;
+      padding: 20px;
+      box-shadow: inset 0 2px 6px rgba(0,0,0,0.8), 0 8px 24px rgba(0,0,0,0.5);
+      position: relative;
+    }
+
+    .pager-device-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .brand-text {
+      font-size: 11px;
+      font-weight: 900;
+      color: #6e7681;
+      letter-spacing: 2px;
+    }
+
+    .strobe-led {
+      width: 14px;
+      height: 14px;
+      border-radius: 50%;
+      background: #30363d;
+      border: 2px solid #161b22;
+      transition: background 0.1s, box-shadow 0.1s;
+    }
+
+    .strobe-led.active {
+      background: #ff4d4d;
+      box-shadow: 0 0 12px #ff4d4d, 0 0 24px #ff0000;
+      animation: blink 0.15s infinite alternate;
+    }
+
+    @keyframes blink {
+      from { opacity: 0.3; }
+      to { opacity: 1; }
+    }
+
+    .lcd-screen {
+      background-color: var(--lcd-bg);
+      color: var(--lcd-text);
+      font-family: var(--font-mono);
+      padding: 16px;
+      border-radius: 8px;
+      border: 4px solid #081109;
+      box-shadow: inset 0 0 12px rgba(0,0,0,0.4);
+      min-height: 130px;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .lcd-screen.flash {
+      animation: lcdGlow 0.3s infinite alternate;
+    }
+
+    @keyframes lcdGlow {
+      from { background-color: var(--lcd-bg); }
+      to { background-color: #d1ffd7; box-shadow: 0 0 20px #82a088; }
+    }
+
+    .lcd-header-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: 11px;
+      font-weight: bold;
+      border-bottom: 1px dashed rgba(0,0,0,0.25);
+      padding-bottom: 4px;
+      text-transform: uppercase;
+    }
+
+    .lcd-body {
+      font-size: 22px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      margin: 12px 0;
+      word-break: break-word;
+      line-height: 1.3;
+    }
+
+    .lcd-footer-bar {
+      display: flex;
+      justify-content: space-between;
+      font-size: 10px;
+      opacity: 0.85;
+      font-weight: bold;
+    }
+
+    .pager-controls {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    .pager-btn {
+      flex: 1;
+      background: #21262d;
+      border: 1px solid var(--border-color);
+      color: #c9d1d9;
+      padding: 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: bold;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.15s;
+    }
+
+    .pager-btn:hover {
+      background: #30363d;
+      color: white;
+    }
+
+    .pager-btn:active {
+      transform: translateY(1px);
+    }
+
+    .pager-btn.danger {
+      background: rgba(218, 54, 51, 0.2);
+      border-color: var(--accent-red);
+      color: #f85149;
+    }
+
+    .pager-btn.danger:hover {
+      background: var(--accent-red);
+      color: white;
+    }
+
+    /* Keypad Sender Styling */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      font-weight: bold;
+      color: #8b949e;
+    }
+
+    input[type="text"], select {
+      background: #0d1117;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 12px;
+      color: #f0f6fc;
+      font-size: 14px;
+      outline: none;
+    }
+
+    input[type="text"]:focus, select:focus {
+      border-color: #58a6ff;
+    }
+
+    .preset-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 8px;
+    }
+
+    .preset-btn {
+      background: #21262d;
+      border: 1px solid var(--border-color);
+      color: #c9d1d9;
+      padding: 8px 10px;
+      border-radius: 6px;
+      font-size: 12px;
+      text-align: left;
+      cursor: pointer;
+      transition: background 0.15s;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .preset-btn:hover {
+      background: #30363d;
+      border-color: #8b949e;
+    }
+
+    .keypad-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+    }
+
+    .num-key {
+      background: #21262d;
+      border: 1px solid var(--border-color);
+      color: #f0f6fc;
+      font-family: var(--font-mono);
+      font-size: 18px;
+      font-weight: bold;
+      padding: 10px;
+      border-radius: 8px;
+      cursor: pointer;
+      text-align: center;
+      transition: all 0.1s;
+    }
+
+    .num-key:hover {
+      background: #30363d;
+    }
+
+    .num-key:active {
+      background: #58a6ff;
+      color: black;
+    }
+
+    .send-btn {
+      background: #238636;
+      color: white;
+      border: none;
+      padding: 14px;
+      border-radius: 10px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 8px;
+      transition: background 0.2s;
+      margin-top: 8px;
+    }
+
+    .send-btn:hover {
+      background: #2ea043;
+    }
+
+    /* History Table */
+    .history-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      max-height: 250px;
+      overflow-y: auto;
+    }
+
+    .history-item {
+      background: #0d1117;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .history-msg {
+      font-family: var(--font-mono);
+      font-weight: bold;
+      color: #f0f6fc;
+    }
+
+    .history-meta {
+      font-size: 11px;
+      color: #8b949e;
+    }
+
+    .badge {
+      font-size: 10px;
+      font-weight: bold;
+      padding: 2px 6px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .badge.normal { background: #1f6beb; color: white; }
+    .badge.urgent { background: #d29922; color: black; }
+    .badge.emergency { background: #da3633; color: white; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <header>
+      <div class="logo-area">
+        <span class="pager-badge">PAGER</span>
+        <h1>Digital Receiver & Sender</h1>
+      </div>
+      <div class="status-bar">
+        <div class="channel-input-group">
+          <label>CHANNEL:</label>
+          <input type="text" id="channelInput" value="DEFAULT" maxlength="12">
+        </div>
+        <button class="arm-btn" id="armBtn">🔊 Enable Loud Sound</button>
+      </div>
+    </header>
+
+    <div class="app-grid">
+      <!-- RECEIVER DEVICE CARD -->
+      <div class="card">
+        <div class="card-title">
+          <span>RECEIVER LCD PAGER</span>
+          <span id="connStatus" style="font-size: 12px; color: #3fb950;">● Connected</span>
+        </div>
+
+        <div class="pager-device">
+          <div class="pager-device-header">
+            <span class="brand-text">TELE-PAGE 9000</span>
+            <div class="strobe-led" id="strobeLed"></div>
+          </div>
+
+          <div class="lcd-screen" id="lcdScreen">
+            <div class="lcd-header-bar">
+              <span id="lcdChannel">CH: DEFAULT</span>
+              <span id="lcdUrgency">READY</span>
+            </div>
+            <div class="lcd-body" id="lcdMessage">READY FOR PAGE...</div>
+            <div class="lcd-footer-bar">
+              <span id="lcdSender">SNDR: ---</span>
+              <span id="lcdTime">--:--:--</span>
+            </div>
+          </div>
+
+          <div class="pager-controls">
+            <button class="pager-btn danger" id="muteBtn">🔇 Mute Alarm</button>
+            <button class="pager-btn" id="testSoundBtn">🔔 Test Tone</button>
+            <button class="pager-btn" id="clearLcdBtn">🧹 Clear LCD</button>
+          </div>
+        </div>
+
+        <!-- HISTORY LOG -->
+        <div style="margin-top: 12px;">
+          <div class="card-title" style="margin-bottom: 8px;">
+            <span>PAGE HISTORY</span>
+            <span id="historyCount" style="font-size: 12px; color: #8b949e;">0 Pages</span>
+          </div>
+          <div class="history-list" id="historyList">
+            <div style="color: #8b949e; font-size: 13px; text-align: center; padding: 20px;">No pages received yet</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SENDER KEYPAD CARD -->
+      <div class="card">
+        <div class="card-title">SENDER TRANSMITTER</div>
+
+        <div class="form-group">
+          <label>Sender Name:</label>
+          <input type="text" id="senderName" value="Dispatch" placeholder="Your name/callsign">
+        </div>
+
+        <div class="form-group">
+          <label>Alert Message / Code:</label>
+          <input type="text" id="messageText" placeholder="e.g., 911, Call me ASAP, Dinner ready">
+        </div>
+
+        <div>
+          <label style="font-size: 13px; font-weight: 800; color: #38bdf8; margin-bottom: 8px; display: flex; justify-content: space-between; align-items: center;">
+            <span>👵 1-TAP GRANDMA QUICK ALERTS:</span>
+            <span style="font-size: 10px; background: rgba(56, 189, 248, 0.15); border: 1px solid rgba(56, 189, 248, 0.4); padding: 2px 6px; border-radius: 4px;">TAP TO TRANSMIT</span>
+          </label>
+          <div class="preset-grid" style="grid-template-columns: repeat(2, 1fr); gap: 10px;">
+            <button class="preset-btn" style="background: rgba(218, 54, 51, 0.25); border-color: #da3633; color: #ff8585; padding: 12px; font-weight: bold; font-size: 13px; border-radius: 10px;" onclick="sendQuickPage('🚨 NEED HELP NOW!', 'emergency', 'siren')">🚨 NEED HELP NOW!</button>
+            <button class="preset-btn" style="background: rgba(56, 189, 248, 0.2); border-color: #38bdf8; color: #7dd3fc; padding: 12px; font-weight: bold; font-size: 13px; border-radius: 10px;" onclick="sendQuickPage('📞 Please call me ASAP', 'urgent', 'two-tone')">📞 PLEASE CALL ME</button>
+            <button class="preset-btn" style="background: rgba(35, 134, 54, 0.25); border-color: #238636; color: #4ade80; padding: 12px; font-weight: bold; font-size: 13px; border-radius: 10px;" onclick="sendQuickPage('🍽️ Dinner is ready!', 'normal', 'classic')">🍽️ DINNER IS READY</button>
+            <button class="preset-btn" style="background: rgba(210, 153, 34, 0.25); border-color: #d29922; color: #fde047; padding: 12px; font-weight: bold; font-size: 13px; border-radius: 10px;" onclick="sendQuickPage('☕ Tea / Coffee time!', 'normal', 'burst')">☕ TEA / COFFEE TIME</button>
+            <button class="preset-btn" style="background: rgba(168, 85, 247, 0.25); border-color: #a855f7; color: #c084fc; padding: 12px; font-weight: bold; font-size: 13px; border-radius: 10px;" onclick="sendQuickPage('💊 Time for medication', 'urgent', 'high-frequency')">💊 TAKE MEDICATION</button>
+            <button class="preset-btn" style="background: rgba(20, 184, 166, 0.25); border-color: #14b8a6; color: #2dd4bf; padding: 12px; font-weight: bold; font-size: 13px; border-radius: 10px;" onclick="sendQuickPage('🚪 Someone at front door', 'normal', 'classic')">🚪 AT FRONT DOOR</button>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label>Numeric Keypad:</label>
+          <div class="keypad-grid">
+            <button class="num-key" onclick="appendKey('1')">1</button>
+            <button class="num-key" onclick="appendKey('2')">2</button>
+            <button class="num-key" onclick="appendKey('3')">3</button>
+            <button class="num-key" onclick="appendKey('4')">4</button>
+            <button class="num-key" onclick="appendKey('5')">5</button>
+            <button class="num-key" onclick="appendKey('6')">6</button>
+            <button class="num-key" onclick="appendKey('7')">7</button>
+            <button class="num-key" onclick="appendKey('8')">8</button>
+            <button class="num-key" onclick="appendKey('9')">9</button>
+            <button class="num-key" onclick="appendKey('*')">*</button>
+            <button class="num-key" onclick="appendKey('0')">0</button>
+            <button class="num-key" onclick="appendKey('#')">#</button>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+          <div class="form-group">
+            <label>Urgency:</label>
+            <select id="urgencySelect">
+              <option value="normal">Normal</option>
+              <option value="urgent">Urgent</option>
+              <option value="emergency">Emergency (Loudest)</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>Alarm Tone:</label>
+            <select id="toneSelect">
+              <option value="classic">Classic Beeper</option>
+              <option value="two-tone">EMS Two-Tone</option>
+              <option value="siren">Siren Sweep</option>
+              <option value="high-frequency">High Pitch Pulse</option>
+              <option value="burst">Quad Burst</option>
+            </select>
+          </div>
+        </div>
+
+        <button class="send-btn" id="sendPageBtn">📡 TRANSMIT PAGE ALERT</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Audio Context & Synthesizer Logic
+    let audioCtx = null;
+    let activeOscillators = [];
+    let isAudioArmed = false;
+    let currentChannel = 'DEFAULT';
+    let history = [];
+    let broadcastChannel = null;
+
+    function getAudioCtx() {
+      if (!audioCtx) {
+        const AudioCtxClass = window.AudioContext || window.webkitAudioContext;
+        audioCtx = new AudioCtxClass();
+      }
+      if (audioCtx.state === 'suspended') {
+        audioCtx.resume();
+      }
+      return audioCtx;
+    }
+
+    function armAudio() {
+      const ctx = getAudioCtx();
+      isAudioArmed = true;
+      document.getElementById('armBtn').textContent = '🔊 Audio Active';
+      document.getElementById('armBtn').classList.add('armed');
+    }
+
+    function stopSound() {
+      activeOscillators.forEach(osc => {
+        try { osc.stop(); osc.disconnect(); } catch(e){}
+      });
+      activeOscillators = [];
+      document.getElementById('strobeLed').classList.remove('active');
+      document.getElementById('lcdScreen').classList.remove('flash');
+      if (navigator.vibrate) navigator.vibrate(0);
+    }
+
+    function playTone(toneStyle, repeats = 1) {
+      stopSound();
+      const ctx = getAudioCtx();
+
+      document.getElementById('strobeLed').classList.add('active');
+      document.getElementById('lcdScreen').classList.add('flash');
+
+      if (navigator.vibrate) {
+        navigator.vibrate([200, 100, 200, 100, 400]);
+      }
+
+      const now = ctx.currentTime;
+      const vol = 0.8;
+
+      for (let r = 0; r < repeats; r++) {
+        const offset = r * 1.2;
+        if (toneStyle === 'two-tone') {
+          const osc1 = ctx.createOscillator();
+          const gain1 = ctx.createGain();
+          osc1.type = 'sawtooth';
+          osc1.frequency.setValueAtTime(600, now + offset);
+          gain1.gain.setValueAtTime(vol, now + offset);
+          osc1.connect(gain1);
+          gain1.connect(ctx.destination);
+          osc1.start(now + offset);
+          osc1.stop(now + offset + 0.35);
+          activeOscillators.push(osc1);
+
+          const osc2 = ctx.createOscillator();
+          const gain2 = ctx.createGain();
+          osc2.type = 'square';
+          osc2.frequency.setValueAtTime(1200, now + offset + 0.4);
+          gain2.gain.setValueAtTime(vol, now + offset + 0.4);
+          osc2.connect(gain2);
+          gain2.connect(ctx.destination);
+          osc2.start(now + offset + 0.4);
+          osc2.stop(now + offset + 0.85);
+          activeOscillators.push(osc2);
+        } else {
+          // Classic beep
+          for (let i = 0; i < 6; i++) {
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            const t = now + offset + (i * 0.1);
+            osc.type = i % 2 === 0 ? 'square' : 'sawtooth';
+            osc.frequency.setValueAtTime(i % 2 === 0 ? 880 : 1760, t);
+            gain.gain.setValueAtTime(vol, t);
+            gain.gain.exponentialRampToValueAtTime(0.001, t + 0.08);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start(t);
+            osc.stop(t + 0.09);
+            activeOscillators.push(osc);
+          }
+        }
+      }
+
+      setTimeout(() => {
+        document.getElementById('strobeLed').classList.remove('active');
+        document.getElementById('lcdScreen').classList.remove('flash');
+      }, (repeats * 1.2 + 0.5) * 1000);
+    }
+
+    // BroadcastChannel & Global Multi-Device Cloud Sync Engine
+    let ntfySse = null;
+    let ntfyPollTimer = null;
+    let sseSource = null;
+    let pollInterval = null;
+    let lastPollTime = new Date(Date.now() - 300000).toISOString();
+    const SERVER_URL = typeof window !== 'undefined' && window.location.protocol.startsWith('http') ? window.location.origin : '';
+
+    function initSync() {
+      currentChannel = (document.getElementById('channelInput').value || 'DEFAULT').toUpperCase().trim();
+      document.getElementById('lcdChannel').textContent = 'CH: ' + currentChannel;
+
+      const topic = 'pager_applet_v2_' + currentChannel.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const ntfyUrl = 'https://ntfy.sh/' + topic;
+
+      // 1. Local BroadcastChannel
+      if (broadcastChannel) broadcastChannel.close();
+      try {
+        broadcastChannel = new BroadcastChannel('pager_channel_' + currentChannel);
+        broadcastChannel.onmessage = (e) => {
+          if (e.data && e.data.message) {
+            receivePage(e.data);
+          }
+        };
+      } catch(e){}
+
+      // 2. ntfy.sh Global Cloud Relay (Instant cross-device push for local file:// & phones)
+      if (ntfySse) ntfySse.close();
+      try {
+        ntfySse = new EventSource(ntfyUrl + '/sse');
+        ntfySse.onmessage = (e) => {
+          try {
+            const data = JSON.parse(e.data);
+            if (data && data.message) {
+              let parsed = null;
+              try { parsed = JSON.parse(data.message); } catch(err){}
+              if (parsed && parsed.id && parsed.message) {
+                receivePage(parsed);
+              }
+            }
+          } catch(err){}
+        };
+      } catch(e){}
+
+      // Backup polling for ntfy
+      if (ntfyPollTimer) clearInterval(ntfyPollTimer);
+      async function pollNtfy() {
+        try {
+          const res = await fetch(ntfyUrl + '/json?poll=1&since=30s');
+          if (res.ok) {
+            const text = await res.text();
+            const lines = text.trim().split('
+');
+            lines.forEach(line => {
+              if (!line.trim()) return;
+              try {
+                const item = JSON.parse(line);
+                if (item && item.message) {
+                  const parsed = JSON.parse(item.message);
+                  if (parsed && parsed.id) receivePage(parsed);
+                }
+              } catch(e){}
+            });
+          }
+        } catch(e){}
+      }
+      pollNtfy();
+      ntfyPollTimer = setInterval(pollNtfy, 2000);
+
+      // 3. Local Server EventSource (if hosted on HTTP)
+      if (SERVER_URL) {
+        if (sseSource) sseSource.close();
+        try {
+          sseSource = new EventSource(SERVER_URL + '/api/events?channel=' + encodeURIComponent(currentChannel));
+          sseSource.onmessage = (e) => {
+            try {
+              const data = JSON.parse(e.data);
+              if (data && data.id && data.message) receivePage(data);
+            } catch(err){}
+          };
+        } catch(e){}
+
+        if (pollInterval) clearInterval(pollInterval);
+        pollInterval = setInterval(pollServer, 1500);
+        pollServer();
+      }
+    }
+
+    async function pollServer() {
+      if (!SERVER_URL) return;
+      try {
+        const res = await fetch(SERVER_URL + '/api/poll?channel=' + encodeURIComponent(currentChannel) + '&since=' + encodeURIComponent(lastPollTime));
+        if (res.ok) {
+          const data = await res.json();
+          if (Array.isArray(data.messages) && data.messages.length > 0) {
+            data.messages.forEach(msg => {
+              receivePage(msg);
+              if (new Date(msg.timestamp) > new Date(lastPollTime)) {
+                lastPollTime = msg.timestamp;
+              }
+            });
+          }
+        }
+      } catch(err){}
+    }
+
+    // LocalStorage fallback sync listener
+    window.addEventListener('storage', (e) => {
+      if (e.key === 'pager_sync_event' && e.newValue) {
+        try {
+          const data = JSON.parse(e.newValue);
+          if (data && data.channel === currentChannel) {
+            receivePage(data);
+          }
+        } catch(err){}
+      }
+    });
+
+    function receivePage(page) {
+      // Check duplicate
+      if (history.some(h => h.id === page.id)) return;
+      history.unshift(page);
+
+      // Render on LCD
+      document.getElementById('lcdMessage').textContent = page.message;
+      document.getElementById('lcdUrgency').textContent = page.urgency.toUpperCase();
+      document.getElementById('lcdSender').textContent = 'SNDR: ' + page.senderName;
+      document.getElementById('lcdTime').textContent = new Date(page.timestamp).toLocaleTimeString();
+
+      // Play Sound
+      playTone(page.tone, page.urgency === 'emergency' ? 3 : 1);
+
+      // Render History
+      renderHistory();
+    }
+
+    function renderHistory() {
+      const listEl = document.getElementById('historyList');
+      document.getElementById('historyCount').textContent = history.length + ' Pages';
+
+      if (history.length === 0) {
+        listEl.innerHTML = '<div style="color: #8b949e; font-size: 13px; text-align: center; padding: 20px;">No pages received yet</div>';
+        return;
+      }
+
+      listEl.innerHTML = history.map(item => `
+        <div class="history-item">
+          <div>
+            <div class="history-msg">${item.message}</div>
+            <div class="history-meta">${item.senderName} • ${new Date(item.timestamp).toLocaleTimeString()}</div>
+          </div>
+          <span class="badge ${item.urgency}">${item.urgency}</span>
+        </div>
+      `).join('');
+    }
+
+    async function sendPage() {
+      const msgText = document.getElementById('messageText').value.trim();
+      if (!msgText) return alert('Please enter a message or numeric code');
+
+      const page = {
+        id: 'p_' + Date.now() + '_' + Math.random().toString(36).substring(2,6),
+        channel: currentChannel,
+        message: msgText,
+        senderName: document.getElementById('senderName')?.value || 'Grandma',
+        urgency: document.getElementById('urgencySelect')?.value || 'normal',
+        tone: document.getElementById('toneSelect')?.value || 'classic',
+        timestamp: new Date().toISOString()
+      };
+
+      // 1. Broadcast to other tabs locally
+      if (broadcastChannel) broadcastChannel.postMessage(page);
+      try {
+        localStorage.setItem('pager_sync_event', JSON.stringify({...page, _ts: Date.now()}));
+      } catch(e){}
+
+      // Receive locally
+      receivePage(page);
+      document.getElementById('messageText').value = '';
+
+      // 2. Transmit to ntfy.sh Global Relay for instant cross-device delivery
+      const topic = 'pager_applet_v2_' + currentChannel.toLowerCase().replace(/[^a-z0-9]/g, '');
+      try {
+        fetch('https://ntfy.sh/' + topic, {
+          method: 'POST',
+          body: JSON.stringify(page),
+          headers: { 'Content-Type': 'text/plain' }
+        }).catch(()=>{});
+      } catch(e){}
+
+      // 3. Transmit to local Express server if hosted on HTTP
+      if (SERVER_URL) {
+        try {
+          await fetch(SERVER_URL + '/api/page', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(page)
+          });
+        } catch(e){}
+      }
+    }
+
+    // Helper functions for inputs
+    function sendQuickPage(msg, urgency = 'normal', tone = 'classic') {
+      document.getElementById('messageText').value = msg;
+      if (document.getElementById('urgencySelect')) document.getElementById('urgencySelect').value = urgency;
+      if (document.getElementById('toneSelect')) document.getElementById('toneSelect').value = tone;
+      sendPage();
+    }
+    function setMsg(val) {
+      document.getElementById('messageText').value = val;
+    }
+    function appendKey(k) {
+      document.getElementById('messageText').value += k;
+    }
+
+    // DOM Event Listeners
+    document.getElementById('armBtn').addEventListener('click', armAudio);
+    document.getElementById('muteBtn').addEventListener('click', stopSound);
+    document.getElementById('testSoundBtn').addEventListener('click', () => playTone('classic', 1));
+    document.getElementById('clearLcdBtn').addEventListener('click', () => {
+      document.getElementById('lcdMessage').textContent = 'READY FOR PAGE...';
+      document.getElementById('lcdUrgency').textContent = 'READY';
+      document.getElementById('lcdSender').textContent = 'SNDR: ---';
+    });
+    document.getElementById('sendPageBtn').addEventListener('click', sendPage);
+    document.getElementById('channelInput').addEventListener('change', initSync);
+    document.addEventListener('click', armAudio, { once: true });
+
+    initSync();
+  </script>
+</body>
+</html>

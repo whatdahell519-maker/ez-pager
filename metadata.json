@@ -1,0 +1,6 @@
+{
+  "name": "Digital Pager",
+  "description": "Instant real-time pager application with low-latency audio alarms, sender and receiver modes, channel synchronization, and standalone single-file HTML export.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
